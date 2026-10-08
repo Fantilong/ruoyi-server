@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.SskBorrowRequestMapper">
+
+	<resultMap type="SskBorrowRequestVo" id="SskBorrowRequestResult">
+		<id     property="id"             column="id"               />
+		<result property="bookId"         column="book_id"          />
+		<result property="status"         column="status"           />
+		<result property="createdAt"      column="created_at"       />
+		<result property="updatedBy"      column="updated_by"       />
+		<result property="updatedAt"      column="updated_at"       />
+		<result property="deleted"        column="deleted"          />
+		<!-- 图书信息 -->
+		<result property="bookName"       column="book_name"        />
+		<result property="bookAuthor"     column="book_author"      />
+		<result property="bookCover"      column="book_cover"       />
+		<result property="shelfCode"      column="shelf_code"       />
+		<result property="stockQuantity"  column="stock_quantity"   />
+	</resultMap>
+
+	<!-- 通用查询列，关联图书表 -->
+	<sql id="selectVo">
+		select r.id, r.book_id, r.status, r.created_at, r.updated_by, r.updated_at, r.deleted,
+		       b.name as book_name, b.author as book_author, b.cover as book_cover,
+		       b.shelf_code, b.stock_quantity
+		from ssk_borrow_request r
+		left join ssk_book b on r.book_id = b.id
+	</sql>
+
+	<!-- 分页查询借阅申请列表 -->
+	<select id="selectList" parameterType="SskBorrowRequestVo" resultMap="SskBorrowRequestResult">
+		<include refid="selectVo"/>
+		<where>
+			r.deleted = 0
+			<if test="bookName != null and bookName != ''">
+				AND b.name like concat('%', #{bookName}, '%')
+			</if>
+			<if test="status != null and status != ''">
+				AND r.status = #{status}
+			</if>
+		</where>
+		order by r.id desc
+	</select>
+
+	<!-- 根据ID查询借阅申请详情 -->
+	<select id="selectById" parameterType="Long" resultMap="SskBorrowRequestResult">
+		<include refid="selectVo"/>
+		where r.id = #{id} and r.deleted = 0
+	</select>
+
+	<!-- 新增借阅申请，deleted固定为0，状态默认为ready -->
+	<insert id="insert" parameterType="SskBorrowRequest" useGeneratedKeys="true" keyProperty="id">
+		insert into ssk_borrow_request(
+			book_id,
+			<if test="status != null and status != ''">status,</if>
+			created_at,
+			deleted
+		)values(
+			#{bookId},
+			<if test="status != null and status != ''">#{status},</if>
+			#{createdAt},
+			0
+		)
+	</insert>
+
+	<!-- 根据ID修改借阅申请（更新状态及更新人/时间） -->
+	<update id="updateById" parameterType="SskBorrowRequest">
+		update ssk_borrow_request
+		<set>
+			<if test="bookId != null">book_id = #{bookId},</if>
+			<if test="status != null and status != ''">status = #{status},</if>
+			<if test="updatedBy != null">updated_by = #{updatedBy},</if>
+			updated_at = #{updatedAt}
+		</set>
+		where id = #{id} and deleted = 0
+	</update>
+
+	<!-- 根据ID集合逻辑删除借阅申请 -->
+	<update id="deleteByIds">
+		update ssk_borrow_request
+		set deleted = 1, updated_by = #{updatedBy}, updated_at = sysdate()
+		where id in
+		<foreach collection="ids" item="id" open="(" separator="," close=")">
+			#{id}
+		</foreach>
+	</update>
+
+</mapper>
