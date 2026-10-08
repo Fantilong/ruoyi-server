@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.SskBookCategoryMapper">
+
+	<resultMap type="SskBookCategory" id="SskBookCategoryResult">
+		<id     property="id"         column="id"          />
+		<result property="parentId"   column="parent_id"   />
+		<result property="title"      column="title"       />
+		<result property="remark"     column="remark"      />
+		<result property="createdBy"  column="created_by"  />
+		<result property="createdAt"  column="created_at"  />
+		<result property="updatedBy"  column="updated_by"  />
+		<result property="updatedAt"  column="updated_at"  />
+		<result property="deleted"    column="deleted"     />
+	</resultMap>
+
+	<!-- 通用查询列，parent_id为空的顶级类目统一转换为0 -->
+	<sql id="selectVo">
+		select id, ifnull(parent_id, 0) as parent_id, title, remark, created_by, created_at, updated_by, updated_at, deleted
+		from ssk_book_category
+	</sql>
+
+	<!-- 查询所有未删除的类目，按ID升序保证树结构稳定 -->
+	<select id="selectList" resultMap="SskBookCategoryResult">
+		<include refid="selectVo"/>
+		where deleted = 0
+		order by id
+	</select>
+
+	<!-- 根据ID查询未删除的类目 -->
+	<select id="selectById" parameterType="Long" resultMap="SskBookCategoryResult">
+		<include refid="selectVo"/>
+		where id = #{id} and deleted = 0
+	</select>
+
+	<!-- 统计同一上级下指定标题的类目数量 -->
+	<select id="countByParentIdAndTitle" resultType="int">
+		select count(1) from ssk_book_category
+		where deleted = 0
+		and ifnull(parent_id, 0) = #{parentId}
+		and title = #{title}
+		<if test="excludeId != null">
+			and id != #{excludeId}
+		</if>
+	</select>
+
+	<!-- 统计指定类目的未删除子类目数量 -->
+	<select id="countChildrenByParentId" parameterType="Long" resultType="int">
+		select count(1) from ssk_book_category
+		where deleted = 0 and parent_id = #{parentId}
+	</select>
+
+	<!-- 新增类目，顶级类目的parent_id统一存0 -->
+	<insert id="insert" parameterType="SskBookCategory" useGeneratedKeys="true" keyProperty="id">
+		insert into ssk_book_category(
+			parent_id,
+			title,
+			<if test="remark != null and remark != ''">remark,</if>
+			created_by,
+			created_at,
+			deleted
+		)values(
+			#{parentId},
+			#{title},
+			<if test="remark != null and remark != ''">#{remark},</if>
+			#{createdBy},
+			#{createdAt},
+			0
+		)
+	</insert>
+
+	<!-- 根据ID修改类目基础信息 -->
+	<update id="updateById" parameterType="SskBookCategory">
+		update ssk_book_category
+		<set>
+			<if test="parentId != null">parent_id = #{parentId},</if>
+			<if test="title != null and title != ''">title = #{title},</if>
+			<if test="remark != null">remark = #{remark},</if>
+			<if test="updatedBy != null">updated_by = #{updatedBy},</if>
+			updated_at = #{updatedAt}
+		</set>
+		where id = #{id} and deleted = 0
+	</update>
+
+	<!-- 根据ID集合逻辑删除类目 -->
+	<update id="deleteByIds">
+		update ssk_book_category
+		set deleted = 1, updated_by = #{updatedBy}, updated_at = sysdate()
+		where id in
+		<foreach collection="ids" item="id" open="(" separator="," close=")">
+			#{id}
+		</foreach>
+	</update>
+
+</mapper>
