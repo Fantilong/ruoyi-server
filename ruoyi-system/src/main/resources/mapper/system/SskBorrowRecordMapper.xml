@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.SskBorrowRecordMapper">
+
+	<resultMap type="SskBorrowRecordVo" id="SskBorrowRecordResult">
+		<id     property="id"               column="id"                 />
+		<result property="bookId"           column="book_id"            />
+		<result property="prisonerNumber"   column="prisoner_number"    />
+		<result property="borrowTime"       column="borrow_time"        />
+		<result property="returnTime"       column="return_time"        />
+		<result property="actualReturnTime" column="actual_return_time"  />
+		<result property="createdBy"        column="created_by"         />
+		<result property="createdAt"        column="created_at"         />
+		<result property="updatedBy"        column="updated_by"         />
+		<result property="updatedAt"        column="updated_at"         />
+		<result property="deleted"          column="deleted"            />
+		<!-- 图书信息 -->
+		<result property="bookName"         column="book_name"          />
+		<result property="bookAuthor"       column="book_author"        />
+		<result property="bookCover"        column="book_cover"         />
+		<result property="shelfCode"        column="shelf_code"         />
+		<!-- 用户姓名 -->
+		<result property="createdByName"    column="created_by_name"    />
+		<result property="updatedByName"    column="updated_by_name"    />
+	</resultMap>
+
+	<!-- 通用查询列，关联图书表与用户表 -->
+	<sql id="selectVo">
+		select r.id, r.book_id, r.prisoner_number, r.borrow_time, r.return_time, r.actual_return_time,
+		       r.created_by, r.created_at, r.updated_by, r.updated_at, r.deleted,
+		       b.name as book_name, b.author as book_author, b.cover as book_cover, b.shelf_code,
+		       u1.nick_name as created_by_name,
+		       u2.nick_name as updated_by_name
+		from ssk_borrow_record r
+		left join ssk_book b on r.book_id = b.id
+		left join sys_user u1 on r.created_by = u1.user_id
+		left join sys_user u2 on r.updated_by = u2.user_id
+	</sql>
+
+	<!-- 分页查询借阅记录列表 -->
+	<select id="selectList" parameterType="SskBorrowRecordVo" resultMap="SskBorrowRecordResult">
+		<include refid="selectVo"/>
+		<where>
+			r.deleted = 0
+			<if test="prisonerNumber != null and prisonerNumber != ''">
+				AND r.prisoner_number like concat('%', #{prisonerNumber}, '%')
+			</if>
+			<if test="bookName != null and bookName != ''">
+				AND b.name like concat('%', #{bookName}, '%')
+			</if>
+		</where>
+		order by r.id desc
+	</select>
+
+	<!-- 根据ID查询借阅记录详情 -->
+	<select id="selectById" parameterType="Long" resultMap="SskBorrowRecordResult">
+		<include refid="selectVo"/>
+		where r.id = #{id} and r.deleted = 0
+	</select>
+
+	<!-- 新增借阅记录，deleted固定为0 -->
+	<insert id="insert" parameterType="SskBorrowRecord" useGeneratedKeys="true" keyProperty="id">
+		insert into ssk_borrow_record(
+			book_id,
+			prisoner_number,
+			borrow_time,
+			return_time,
+			<if test="actualReturnTime != null">actual_return_time,</if>
+			created_by,
+			created_at,
+			deleted
+		)values(
+			#{bookId},
+			#{prisonerNumber},
+			#{borrowTime},
+			#{returnTime},
+			<if test="actualReturnTime != null">#{actualReturnTime},</if>
+			#{createdBy},
+			#{createdAt},
+			0
+		)
+	</insert>
+
+	<!-- 根据ID修改借阅记录 -->
+	<update id="updateById" parameterType="SskBorrowRecord">
+		update ssk_borrow_record
+		<set>
+			<if test="bookId != null">book_id = #{bookId},</if>
+			<if test="prisonerNumber != null and prisonerNumber != ''">prisoner_number = #{prisonerNumber},</if>
+			<if test="borrowTime != null">borrow_time = #{borrowTime},</if>
+			<if test="returnTime != null">return_time = #{returnTime},</if>
+			<if test="actualReturnTime != null">actual_return_time = #{actualReturnTime},</if>
+			<if test="updatedBy != null">updated_by = #{updatedBy},</if>
+			updated_at = #{updatedAt}
+		</set>
+		where id = #{id} and deleted = 0
+	</update>
+
+	<!-- 根据ID集合逻辑删除借阅记录 -->
+	<update id="deleteByIds">
+		update ssk_borrow_record
+		set deleted = 1, updated_by = #{updatedBy}, updated_at = sysdate()
+		where id in
+		<foreach collection="ids" item="id" open="(" separator="," close=")">
+			#{id}
+		</foreach>
+	</update>
+
+	<!-- 还书：将实际归还时间设为当前时间 -->
+	<update id="updateReturnTime">
+		update ssk_borrow_record
+		set actual_return_time = sysdate(),
+			updated_by = #{updatedBy},
+			updated_at = sysdate()
+		where id = #{id} and deleted = 0
+	</update>
+
+</mapper>
