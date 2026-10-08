@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.SskBookMapper">
+
+	<resultMap type="SskBookVo" id="SskBookResult">
+		<id     property="id"             column="id"               />
+		<result property="name"           column="name"             />
+		<result property="description"    column="description"      />
+		<result property="stockQuantity"  column="stock_quantity"    />
+		<result property="author"         column="author"            />
+		<result property="categoryIds"    column="category_ids"      />
+		<result property="shelfCode"      column="shelf_code"        />
+		<result property="cover"          column="cover"             />
+		<result property="images"         column="images"            />
+		<result property="createdBy"      column="created_by"        />
+		<result property="createdAt"      column="created_at"        />
+		<result property="updatedBy"      column="updated_by"        />
+		<result property="updatedAt"      column="updated_at"        />
+		<result property="deleted"        column="deleted"           />
+		<result property="createdByName"  column="created_by_name"   />
+		<result property="updatedByName"  column="updated_by_name"   />
+	</resultMap>
+
+	<!-- 通用查询列，关联用户表获取创建人/更新人姓名 -->
+	<sql id="selectVo">
+		select b.id, b.name, b.description, b.stock_quantity, b.author, b.category_ids,
+		       b.shelf_code, b.cover, b.images,
+		       b.created_by, b.created_at, b.updated_by, b.updated_at, b.deleted,
+		       u1.nick_name as created_by_name,
+		       u2.nick_name as updated_by_name
+		from ssk_book b
+		left join sys_user u1 on b.created_by = u1.user_id
+		left join sys_user u2 on b.updated_by = u2.user_id
+	</sql>
+
+	<!-- 分页查询图书列表 -->
+	<select id="selectList" parameterType="SskBookVo" resultMap="SskBookResult">
+		<include refid="selectVo"/>
+		<where>
+			b.deleted = 0
+			<if test="name != null and name != ''">
+				AND b.name like concat('%', #{name}, '%')
+			</if>
+			<if test="author != null and author != ''">
+				AND b.author like concat('%', #{author}, '%')
+			</if>
+			<if test="shelfCode != null and shelfCode != ''">
+				AND b.shelf_code = #{shelfCode}
+			</if>
+			<if test="categoryIdsList != null and categoryIdsList.size() > 0">
+				AND (
+				<foreach collection="categoryIdsList" item="catId" separator=" OR ">
+					FIND_IN_SET(#{catId}, b.category_ids)
+				</foreach>
+				)
+			</if>
+		</where>
+		order by b.id desc
+	</select>
+
+	<!-- 根据ID查询图书详情 -->
+	<select id="selectById" parameterType="Long" resultMap="SskBookResult">
+		<include refid="selectVo"/>
+		where b.id = #{id} and b.deleted = 0
+	</select>
+
+	<!-- 新增图书，deleted字段固定写入0 -->
+	<insert id="insert" parameterType="SskBook" useGeneratedKeys="true" keyProperty="id">
+		insert into ssk_book(
+			name,
+			description,
+			stock_quantity,
+			author,
+			category_ids,
+			shelf_code,
+			<if test="cover != null and cover != ''">cover,</if>
+			<if test="images != null and images != ''">images,</if>
+			created_by,
+			created_at,
+			deleted
+		)values(
+			#{name},
+			#{description},
+			#{stockQuantity},
+			#{author},
+			#{categoryIds},
+			#{shelfCode},
+			<if test="cover != null and cover != ''">#{cover},</if>
+			<if test="images != null and images != ''">#{images},</if>
+			#{createdBy},
+			#{createdAt},
+			0
+		)
+	</insert>
+
+	<!-- 根据ID修改图书 -->
+	<update id="updateById" parameterType="SskBook">
+		update ssk_book
+		<set>
+			<if test="name != null and name != ''">name = #{name},</if>
+			<if test="description != null and description != ''">description = #{description},</if>
+			<if test="stockQuantity != null">stock_quantity = #{stockQuantity},</if>
+			<if test="author != null and author != ''">author = #{author},</if>
+			<if test="categoryIds != null">category_ids = #{categoryIds},</if>
+			<if test="shelfCode != null and shelfCode != ''">shelf_code = #{shelfCode},</if>
+			<if test="cover != null">cover = #{cover},</if>
+			<if test="images != null">images = #{images},</if>
+			<if test="updatedBy != null">updated_by = #{updatedBy},</if>
+			updated_at = #{updatedAt}
+		</set>
+		where id = #{id} and deleted = 0
+	</update>
+
+	<!-- 根据ID集合逻辑删除图书 -->
+	<update id="deleteByIds">
+		update ssk_book
+		set deleted = 1, updated_by = #{updatedBy}, updated_at = sysdate()
+		where id in
+		<foreach collection="ids" item="id" open="(" separator="," close=")">
+			#{id}
+		</foreach>
+	</update>
+
+</mapper>
